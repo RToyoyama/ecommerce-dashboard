@@ -6,4 +6,3 @@ venv/
 *.db
 .env
 .DS_Store
-data/processed/*.csv
