@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-commerce Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+      color: #fff;
+      padding: 28px 36px;
+      display: flex;
+      align-items: flex-end;
+      gap: 16px;
+    }
+    header h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.3px; }
+    header p  { font-size: 0.875rem; opacity: 0.75; margin-top: 4px; }
+    .header-badge {
+      margin-left: auto;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    /* ── Layout ── */
+    .container { max-width: 1400px; margin: 0 auto; padding: 28px 24px; }
+
+    /* ── KPI Cards ── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 22px 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      border-top: 4px solid;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.12); }
+    .kpi-card:nth-child(1) { border-color: #2563eb; }
+    .kpi-card:nth-child(2) { border-color: #16a34a; }
+    .kpi-card:nth-child(3) { border-color: #d97706; }
+    .kpi-card:nth-child(4) { border-color: #7c3aed; }
+    .kpi-icon  { font-size: 1.6rem; margin-bottom: 8px; }
+    .kpi-label { font-size: 0.7rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .06em; }
+    .kpi-value { font-size: 2rem; font-weight: 800; margin-top: 2px; line-height: 1; }
+    .kpi-sub   { font-size: 0.78rem; color: #94a3b8; margin-top: 6px; }
+
+    /* ── Chart Cards ── */
+    .row {
+      display: grid;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .row-2-1 { grid-template-columns: 2fr 1fr; }
+    .row-1-1 { grid-template-columns: 1fr 1fr; }
+    .row-1   { grid-template-columns: 1fr; }
+
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 22px 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .card-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #374151;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f1f5f9;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .chart-wrap { position: relative; }
+
+    /* ── Filter bar ── */
+    .filter-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .filter-bar label { font-size: 0.82rem; font-weight: 600; color: #475569; }
+    .filter-bar select {
+      padding: 7px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      background: #fff;
+      color: #1a202c;
+      cursor: pointer;
+    }
+    .filter-bar select:focus { outline: 2px solid #2563eb; outline-offset: 1px; }
+    .reset-btn {
+      padding: 7px 14px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .reset-btn:hover { background: #1d4ed8; }
+
+    /* ── Responsive ── */
+    @media (max-width: 960px) {
+      .kpi-grid { grid-template-columns: 1fr 1fr; }
+      .row-2-1, .row-1-1 { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 540px) {
+      .kpi-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>E-commerce Dashboard</h1>
+    <p>Análise de Transações e Perfil de Clientes</p>
+  </div>
+  <div class="header-badge" id="badge-rows">Carregando…</div>
+</header>
+
+<div class="container">
+
+  <!-- Filter bar -->
+  <div class="filter-bar">
+    <label>Filtrar por:</label>
+    <select id="filter-gender">
+      <option value="">Todos os gêneros</option>
+    </select>
+    <select id="filter-state">
+      <option value="">Todos os estados</option>
+    </select>
+    <select id="filter-category">
+      <option value="">Todas as categorias</option>
+    </select>
+    <button class="reset-btn" onclick="resetFilters()">Limpar filtros</button>
+  </div>
+
+  <!-- KPI Row -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-icon">💰</div>
+      <div class="kpi-label">Receita Total</div>
+      <div class="kpi-value" id="kpi-revenue">—</div>
+      <div class="kpi-sub">soma das transações</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">🛒</div>
+      <div class="kpi-label">Transações</div>
+      <div class="kpi-value" id="kpi-count">—</div>
+      <div class="kpi-sub">total de pedidos</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">👤</div>
+      <div class="kpi-label">Clientes Únicos</div>
+      <div class="kpi-value" id="kpi-clients">—</div>
+      <div class="kpi-sub">por id_client</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon">🎫</div>
+      <div class="kpi-label">Ticket Médio</div>
+      <div class="kpi-value" id="kpi-avg">—</div>
+      <div class="kpi-sub">por transação</div>
+    </div>
+  </div>
+
+  <!-- Row 1: Revenue by Category + Gender -->
+  <div class="row row-2-1">
+    <div class="card">
+      <div class="card-title">📦 Receita por Categoria</div>
+      <div class="chart-wrap" style="height:340px">
+        <canvas id="chart-category"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🧑 Distribuição por Gênero</div>
+      <div class="chart-wrap" style="height:340px">
+        <canvas id="chart-gender"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2: Revenue by State + Price Histogram -->
+  <div class="row row-1-1">
+    <div class="card">
+      <div class="card-title">🗺️ Receita por Estado (Top 12)</div>
+      <div class="chart-wrap" style="height:300px">
+        <canvas id="chart-state"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">📊 Distribuição de Preços</div>
+      <div class="chart-wrap" style="height:300px">
+        <canvas id="chart-price"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 3: Top Job Titles -->
+  <div class="row row-1">
+    <div class="card">
+      <div class="card-title">💼 Top 10 Cargos por Número de Transações</div>
+      <div class="chart-wrap" style="height:260px">
+        <canvas id="chart-jobs"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Embedded data ──────────────────────────────────────────────
+const RAW_CSV = `id_client,First_name,Gender,Job_Title,state_name,Category,Price,Card Type
+37,Cornie,Genderqueer,Editor,ND,Electronics,72.93,mastercard
+38,Rab,Male,Assistant Manager,PA,Jewelry,121.89,mastercard
+39,Codie,Female,Financial Analyst,MA,Baby,64.3,mastercard
+40,Scott,Female,Civil Engineer,OR,Outdoors,9.48,mastercard
+5,Tanney,Female,VP Marketing,MN,Outdoors,61.95,mastercard
+6,Launce,Male,Automation Specialist I,VA,Outdoors,15.96,mastercard
+7,Adham,Male,Project Manager,CO,Beauty,149.02,mastercard
+8,Dante,Male,Geological Engineer,TX,Games,97.38,mastercard
+9,Hi,Female,Senior Cost Accountant,PA,Outdoors,139.96,mastercard
+10,Carmine,Female,Statistician II,CA,Shoes,55.45,mastercard
+11,Waring,Female,Software Consultant,NC,Jewelry,96.16,mastercard
+12,Cori,Female,Senior Sales Associate,CA,Computers,104.93,mastercard
+13,Rodge,Genderfluid,Health Coach III,TX,Baby,92.52,mastercard
+14,Nikolos,Male,Geologist III,TX,Grocery,108.42,mastercard
+15,Guy,Female,Senior Cost Accountant,DC,Shoes,144.17,mastercard
+16,Anton,Male,Media Manager II,TX,Computers,5.45,mastercard
+17,Willem,Female,Media Manager II,VA,Sports,5.12,mastercard
+18,Timothy,Female,Marketing Manager,OH,Games,29.3,mastercard
+19,Sheridan,Male,Assistant Manager,MD,Toys,9.34,mastercard
+20,Kalil,Genderfluid,Senior Editor,LA,Music,94.53,mastercard
+21,Augusto,Female,Research Nurse,LA,Computers,16.72,mastercard
+22,Duffie,Female,Information Systems Manager,LA,Tools,32.56,mastercard
+23,Clyde,Female,Dental Hygienist,FL,Beauty,6.84,mastercard
+24,Harcourt,Female,Web Designer III,GA,Grocery,10.44,mastercard
+25,Elwyn,Male,Senior Developer,LA,Clothing,85.65,mastercard
+26,Desmund,Female,Senior Sales Associate,LA,Industrial,133.3,mastercard
+27,Emelen,Male,Project Manager,TX,Baby,69.98,mastercard
+28,Mattheus,Female,Pharmacist,MI,Jewelry,48.58,mastercard
+29,Jonas,Male,Cost Accountant,MI,Home,142.53,mastercard
+30,Moishe,Female,Human Resources Assistant III,OH,Industrial,99.03,mastercard
+31,Reinwald,Male,Sales Representative,NE,Toys,87.62,mastercard
+32,Tobin,Male,Food Chemist,CA,Home,141.11,mastercard
+33,Bo,Male,VP Product Management,FL,Books,68.77,mastercard
+34,Sherm,Male,Senior Financial Analyst,WA,Home,15.12,mastercard
+35,Mile,Male,Occupational Therapist,VA,Movies,96.45,mastercard
+36,Turner,Male,Automation Specialist IV,TX,Health,123.38,mastercard
+37,Cornie,Genderqueer,Editor,ND,Home,58.77,mastercard
+38,Rab,Male,Assistant Manager,PA,Clothing,117.56,mastercard
+39,Codie,Female,Financial Analyst,MA,Clothing,134.15,mastercard
+40,Scott,Female,Civil Engineer,OR,Jewelry,53.63,mastercard
+41,Hilary,Male,Design Engineer,MS,Books,82.78,mastercard
+42,Keir,Female,Senior Editor,CA,Movies,132.11,mastercard
+43,Raffarty,Male,General Manager,TX,Computers,59.74,mastercard
+44,Federico,Non-binary,Nurse Practicioner,CA,Automotive,105.26,mastercard
+45,Karlan,Female,Financial Advisor,FL,Shoes,53.56,mastercard
+46,Demetris,Female,Programmer Analyst IV,PA,Tools,136.53,mastercard
+47,Lisle,Female,Web Designer I,AZ,Industrial,106.66,mastercard
+48,Rabi,Genderfluid,Director of Sales,MS,Health,93.46,mastercard
+49,Jareb,Male,Sales Associate,NY,Books,147.63,mastercard
+50,Sergent,Male,Geologist II,NV,Kids,145.58,mastercard
+51,Reinaldo,Female,Editor,NY,Shoes,81.44,mastercard
+52,Zebadiah,Female,Desktop Support Technician,OR,Health,64.7,mastercard
+53,Shurlock,Polygender,Junior Executive,DC,Beauty,60.66,mastercard
+54,Chip,Agender,Recruiting Manager,WV,Industrial,9.11,mastercard
+55,Alford,Female,Human Resources Assistant I,TX,Industrial,100.62,mastercard
+56,Marius,Male,Senior Cost Accountant,MO,Books,132.4,mastercard
+57,Marmaduke,Non-binary,Sales Associate,MA,Kids,60.75,mastercard
+58,Emlyn,Female,Business Systems Development Analyst,NV,Toys,10.73,mastercard
+59,Frederich,Female,Health Coach II,NY,Music,90.98,mastercard
+60,Davidde,Male,VP Marketing,CA,Movies,95.97,mastercard
+61,Angus,Female,Senior Sales Associate,CA,Kids,54.04,mastercard
+62,Cchaddie,Male,Business Systems Development Analyst,CA,Grocery,97.0,mastercard
+63,Fons,Female,Senior Developer,AR,Beauty,45.49,mastercard
+64,Lucio,Female,Web Developer IV,SD,Health,99.37,mastercard
+65,Wolf,Male,Recruiting Manager,CA,Games,26.75,mastercard
+66,Lazare,Male,Associate Professor,LA,Shoes,85.94,mastercard
+67,Cornelius,Male,Recruiting Manager,KY,Jewelry,17.25,mastercard
+68,Matteo,Bigender,Social Worker,OR,Games,49.82,mastercard
+69,Domingo,Female,Recruiter,CA,Toys,88.43,mastercard
+70,Bordie,Male,Sales Associate,PA,Tools,23.53,mastercard
+71,Neil,Female,Geologist IV,CA,Kids,55.81,mastercard
+72,Allistir,Female,Chief Design Engineer,TX,Computers,96.65,mastercard
+73,Rafe,Genderfluid,Senior Editor,DC,Outdoors,64.76,mastercard
+74,Galvan,Male,Teacher,NE,Shoes,61.25,mastercard
+75,Dionysus,Female,Legal Assistant,LA,Movies,141.32,mastercard
+76,Raul,Male,Speech Pathologist,TX,Shoes,98.09,mastercard
+77,Codie,Female,Media Manager I,CT,Home,95.54,mastercard
+78,Zeke,Female,Research Associate,DC,Health,53.12,mastercard
+79,Siegfried,Female,VP Product Management,FL,Computers,64.61,mastercard
+1,Domingo,Male,Structural Analysis Engineer,TX,Outdoors,16.97,mastercard
+2,Russell,Male,Speech Pathologist,MI,Grocery,143.39,mastercard
+3,Kimble,Male,Account Coordinator,AL,Music,37.64,mastercard
+4,Barnabas,Male,General Manager,IL,Jewelry,8.51,mastercard
+5,Tanney,Female,VP Marketing,MN,Grocery,28.42,mastercard
+85,Kennan,Female,Project Manager,DC,Kids,139.38,mastercard
+86,Gilburt,Female,Community Outreach Specialist,FL,Shoes,123.66,mastercard
+87,Ruttger,Male,Chief Design Engineer,ID,Books,66.68,mastercard
+88,Fransisco,Female,Design Engineer,CA,Tools,23.51,mastercard
+89,Reade,Female,General Manager,TX,Baby,81.13,mastercard
+90,Weylin,Male,Engineer I,FL,Clothing,66.53,mastercard
+91,Riobard,Male,Technical Writer,FL,Music,86.24,mastercard
+92,Ambrosi,Male,Analyst Programmer,IN,Industrial,45.48,mastercard
+93,Norris,Genderqueer,Business Systems Development Analyst,VA,Outdoors,79.53,mastercard
+94,Lorens,Female,Staff Accountant IV,CA,Health,92.86,mastercard
+95,Denis,Female,VP Product Management,IL,Electronics,125.29,mastercard
+96,Rhett,Female,Biostatistician IV,OH,Baby,18.69,mastercard
+97,Hamlin,Male,Media Manager I,AL,Movies,136.95,mastercard
+98,Sebastien,Male,Media Manager III,PA,Games,114.69,mastercard
+99,Dewey,Female,Executive Secretary,CA,Clothing,104.06,mastercard
+100,Renault,Agender,Biostatistician IV,AL,Games,146.54,mastercard
+101,Blayne,Female,Software Engineer IV,CA,Sports,148.59,mastercard
+102,Mendy,Male,Web Designer III,NY,Games,25.12,mastercard
+103,Finley,Male,Associate Professor,NY,Kids,33.69,mastercard
+104,Tynan,Male,VP Sales,MN,Electronics,25.48,mastercard
+105,Christoph,Female,Quality Control Specialist,TX,Outdoors,45.72,mastercard
+106,Vassili,Male,Chemical Engineer,IN,Outdoors,97.85,mastercard
+107,Titos,Male,Nuclear Power Engineer,WA,Tools,11.64,mastercard
+108,Turner,Female,Developer IV,NC,Music,39.52,mastercard
+109,Kyle,Male,Actuary,OH,Garden,128.48,mastercard
+110,Yehudi,Genderfluid,Project Manager,TX,Computers,54.2,mastercard
+111,Adams,Female,Clinical Specialist,VA,Beauty,3.45,mastercard
+112,Ingemar,Genderqueer,Account Coordinator,TX,Jewelry,99.85,mastercard
+113,Bartolomeo,Male,Executive Secretary,DC,Music,65.25,mastercard
+114,Lennard,Female,Administrative Assistant II,IN,Movies,12.17,mastercard
+115,Ralf,Female,Senior Quality Engineer,AZ,Tools,32.57,mastercard
+116,Marten,Non-binary,Web Developer IV,CA,Industrial,42.22,mastercard
+117,Portie,Female,Teacher,GA,Beauty,125.24,mastercard
+118,Jacob,Male,Teacher,IL,Beauty,70.14,mastercard
+119,Joaquin,Male,Product Engineer,NC,Baby,134.09,mastercard
+120,Dougy,Male,Computer Systems Analyst IV,NY,Health,67.75,mastercard
+121,Bartel,Female,Actuary,OH,Industrial,105.17,mastercard
+122,Inigo,Female,Programmer Analyst II,KS,Home,99.16,mastercard
+123,Ross,Male,Analog Circuit Design manager,VA,Beauty,96.87,mastercard
+124,Saul,Female,VP Marketing,DC,Toys,29.08,mastercard
+125,Bary,Female,Technical Writer,CA,Movies,148.07,mastercard
+126,Anatol,Male,Sales Representative,NJ,Kids,0.51,mastercard
+127,Gaspard,Male,Automation Specialist I,MI,Industrial,63.15,mastercard
+128,Kirk,Male,Nuclear Power Engineer,NY,Music,137.43,mastercard
+129,Jamill,Female,Cost Accountant,LA,Electronics,100.18,mastercard
+112,Ingemar,Genderqueer,Account Coordinator,TX,Kids,9.12,mastercard
+113,Bartolomeo,Male,Executive Secretary,DC,Electronics,8.23,mastercard
+114,Lennard,Female,Administrative Assistant II,IN,Home,19.31,mastercard
+115,Ralf,Female,Senior Quality Engineer,AZ,Automotive,130.2,mastercard
+116,Marten,Non-binary,Web Developer IV,CA,Baby,114.29,mastercard
+117,Portie,Female,Teacher,GA,Baby,69.25,mastercard
+118,Jacob,Male,Teacher,IL,Kids,50.04,mastercard
+137,Swen,Agender,Pharmacist,IN,Baby,15.52,mastercard
+138,Obadiah,Male,Office Assistant II,OR,Industrial,29.28,mastercard
+139,Reilly,Female,Nurse,MA,Tools,31.04,mastercard
+140,Baron,Female,Safety Technician III,PA,Baby,2.58,mastercard
+141,Britt,Male,Accounting Assistant III,OH,Beauty,119.12,mastercard
+142,Raimondo,Male,Administrative Assistant IV,TX,Health,138.62,mastercard
+143,Trip,Female,Data Coordinator,CA,Games,101.05,mastercard
+144,Teddy,Male,Payment Adjustment Coordinator,UT,Grocery,9.42,mastercard
+145,Justino,Female,Teacher,NJ,Grocery,64.39,mastercard
+146,Con,Male,Operator,FL,Toys,85.19,mastercard
+147,Claiborne,Female,Dental Hygienist,MA,Shoes,38.07,mastercard
+148,Harold,Female,Sales Associate,ID,Books,116.73,mastercard
+149,Raynard,Female,Environmental Specialist,TX,Tools,63.01,mastercard
+150,Boothe,Male,Marketing Manager,DC,Electronics,12.15,mastercard
+151,Cornie,Male,Engineer II,KS,Garden,101.21,mastercard
+152,Teador,Female,Assistant Media Planner,HI,Movies,141.55,mastercard
+153,Nial,Male,Help Desk Technician,TN,Jewelry,138.11,mastercard
+154,Talbot,Male,VP Marketing,NJ,Electronics,107.81,mastercard
+155,Karlens,Male,Desktop Support Technician,DC,Beauty,133.1,mastercard
+156,Ross,Male,Senior Financial Analyst,FL,Computers,93.13,mastercard
+157,Dale,Female,Senior Cost Accountant,TX,Beauty,59.81,mastercard
+158,Jarib,Genderfluid,Food Chemist,IL,Clothing,144.9,mastercard
+159,Adolphe,Female,Database Administrator II,PA,Electronics,83.75,mastercard
+160,Godard,Female,Senior Editor,IL,Toys,62.04,mastercard
+161,Dietrich,Male,Paralegal,NC,Music,104.63,mastercard
+162,Reuven,Female,Media Manager IV,DC,Kids,24.71,mastercard
+163,Tadd,Female,Electrical Engineer,MD,Beauty,118.07,mastercard
+164,Marius,Female,Safety Technician III,VA,Tools,62.7,mastercard
+165,Ricoriki,Male,Sales Representative,AL,Outdoors,1.72,mastercard
+166,Courtnay,Male,Quality Engineer,IN,Electronics,114.02,mastercard
+167,Melvin,Male,Senior Quality Engineer,KS,Electronics,135.37,mastercard
+168,Nicol,Male,Director of Sales,TX,Industrial,17.52,mastercard
+169,Seward,Female,Editor,AL,Sports,5.84,mastercard
+170,Tremain,Female,Executive Secretary,NY,Music,138.49,mastercard
+171,Fairleigh,Male,Desktop Support Technician,UT,Books,35.85,mastercard
+172,Lambert,Agender,Chemical Engineer,DC,Automotive,130.08,mastercard
+173,Jacob,Male,Senior Financial Analyst,NY,Kids,28.38,mastercard
+174,Pip,Male,Chief Design Engineer,OK,Sports,36.35,mastercard
+175,Murvyn,Female,Safety Technician IV,OR,Kids,141.71,mastercard
+130,Angel,Female,Quality Engineer,FL,Kids,128.6,mastercard
+131,Harley,Female,Associate Professor,AR,Shoes,111.91,mastercard
+132,Alex,Male,VP Product Management,CT,Industrial,119.73,mastercard
+133,Averill,Female,Assistant Professor,DC,Clothing,113.71,mastercard
+134,Christy,Female,Research Associate,VA,Outdoors,101.06,mastercard
+135,Chrisse,Male,Technical Writer,VA,Shoes,42.24,mastercard
+136,Edgar,Polygender,Biostatistician IV,FL,Jewelry,93.71,mastercard
+137,Swen,Agender,Pharmacist,IN,Sports,66.49,mastercard
+138,Obadiah,Male,Office Assistant II,OR,Kids,34.86,mastercard
+139,Reilly,Female,Nurse,MA,Sports,138.76,mastercard
+140,Baron,Female,Safety Technician III,PA,Sports,4.31,mastercard
+141,Britt,Male,Accounting Assistant III,OH,Industrial,143.93,mastercard
+142,Raimondo,Male,Administrative Assistant IV,TX,Sports,44.99,mastercard
+143,Trip,Female,Data Coordinator,CA,Shoes,27.43,mastercard
+144,Teddy,Male,Payment Adjustment Coordinator,UT,Industrial,78.48,mastercard
+145,Justino,Female,Teacher,NJ,Electronics,43.57,mastercard
+146,Con,Male,Operator,FL,Automotive,66.52,mastercard
+147,Claiborne,Female,Dental Hygienist,MA,Movies,23.51,mastercard
+148,Harold,Female,Sales Associate,ID,Jewelry,5.12,mastercard
+149,Raynard,Female,Environmental Specialist,TX,Movies,4.9,mastercard
+150,Boothe,Male,Marketing Manager,DC,Games,102.57,mastercard
+151,Cornie,Male,Engineer II,KS,Shoes,112.89,mastercard
+152,Teador,Female,Assistant Media Planner,HI,Home,91.84,mastercard
+153,Nial,Male,Help Desk Technician,TN,Beauty,88.43,mastercard
+154,Talbot,Male,VP Marketing,NJ,Beauty,47.89,mastercard
+155,Karlens,Male,Desktop Support Technician,DC,Tools,60.42,mastercard
+156,Ross,Male,Senior Financial Analyst,FL,Beauty,134.75,mastercard
+157,Dale,Female,Senior Cost Accountant,TX,Outdoors,117.02,mastercard
+158,Jarib,Genderfluid,Food Chemist,IL,Automotive,136.0,mastercard
+159,Adolphe,Female,Database Administrator II,PA,Grocery,115.03,mastercard
+160,Godard,Female,Senior Editor,IL,Computers,64.25,mastercard
+161,Dietrich,Male,Paralegal,NC,Industrial,1.86,mastercard
+162,Reuven,Female,Media Manager IV,DC,Books,93.91,mastercard
+17,Willem,Female,Media Manager II,VA,Industrial,27.87,mastercard
+18,Timothy,Female,Marketing Manager,OH,Automotive,116.19,mastercard
+19,Sheridan,Male,Assistant Manager,MD,Computers,3.72,mastercard
+20,Kalil,Genderfluid,Senior Editor,LA,Kids,36.02,mastercard
+21,Augusto,Female,Research Nurse,LA,Outdoors,31.34,mastercard
+22,Duffie,Female,Information Systems Manager,LA,Home,72.98,mastercard
+23,Clyde,Female,Dental Hygienist,FL,Sports,72.91,mastercard
+24,Harcourt,Female,Web Designer III,GA,Beauty,76.3,mastercard
+25,Elwyn,Male,Senior Developer,LA,Music,97.94,mastercard
+26,Desmund,Female,Senior Sales Associate,LA,Music,77.58,mastercard
+27,Emelen,Male,Project Manager,TX,Baby,129.78,mastercard
+28,Mattheus,Female,Pharmacist,MI,Electronics,64.54,mastercard
+29,Jonas,Male,Cost Accountant,MI,Tools,108.82,mastercard
+30,Moishe,Female,Human Resources Assistant III,OH,Health,51.88,mastercard
+31,Reinwald,Male,Sales Representative,NE,Toys,68.69,mastercard
+32,Tobin,Male,Food Chemist,CA,Kids,68.66,mastercard
+33,Bo,Male,VP Product Management,FL,Industrial,80.97,mastercard
+34,Sherm,Male,Senior Financial Analyst,WA,Industrial,24.8,mastercard
+35,Mile,Male,Occupational Therapist,VA,Movies,67.89,mastercard
+36,Turner,Male,Automation Specialist IV,TX,Industrial,55.46,mastercard
+37,Cornie,Genderqueer,Editor,ND,Home,36.27,mastercard
+38,Rab,Male,Assistant Manager,PA,Clothing,83.07,mastercard
+39,Codie,Female,Financial Analyst,MA,Home,112.25,mastercard
+40,Scott,Female,Civil Engineer,OR,Sports,139.0,mastercard
+41,Hilary,Male,Design Engineer,MS,Beauty,85.16,mastercard
+42,Keir,Female,Senior Editor,CA,Automotive,84.32,mastercard
+43,Raffarty,Male,General Manager,TX,Shoes,35.57,mastercard
+44,Federico,Non-binary,Nurse Practicioner,CA,Home,29.0,mastercard
+45,Karlan,Female,Financial Advisor,FL,Automotive,4.34,mastercard
+46,Demetris,Female,Programmer Analyst IV,PA,Garden,132.73,mastercard
+47,Lisle,Female,Web Designer I,AZ,Home,78.99,mastercard
+48,Rabi,Genderfluid,Director of Sales,MS,Grocery,51.27,mastercard
+49,Jareb,Male,Sales Associate,NY,Sports,18.23,mastercard
+50,Sergent,Male,Geologist II,NV,Jewelry,128.95,mastercard
+51,Reinaldo,Female,Editor,NY,Garden,53.74,mastercard
+52,Zebadiah,Female,Desktop Support Technician,OR,Computers,66.4,mastercard
+53,Shurlock,Polygender,Junior Executive,DC,Games,17.67,mastercard
+54,Chip,Agender,Recruiting Manager,WV,Industrial,13.38,mastercard
+55,Alford,Female,Human Resources Assistant I,TX,Baby,41.92,mastercard
+56,Marius,Male,Senior Cost Accountant,MO,Home,40.89,mastercard
+57,Marmaduke,Non-binary,Sales Associate,MA,Computers,113.68,mastercard
+58,Emlyn,Female,Business Systems Development Analyst,NV,Music,57.67,mastercard
+59,Frederich,Female,Health Coach II,NY,Tools,114.58,mastercard
+60,Davidde,Male,VP Marketing,CA,Garden,41.34,mastercard
+61,Angus,Female,Senior Sales Associate,CA,Games,7.24,mastercard
+62,Cchaddie,Male,Business Systems Development Analyst,CA,Grocery,119.74,mastercard
+63,Fons,Female,Senior Developer,AR,Garden,9.11,mastercard
+64,Lucio,Female,Web Developer IV,SD,Jewelry,142.25,mastercard
+65,Wolf,Male,Recruiting Manager,CA,Grocery,78.53,mastercard
+66,Lazare,Male,Associate Professor,LA,Music,63.78,mastercard
+67,Cornelius,Male,Recruiting Manager,KY,Grocery,108.03,mastercard
+68,Matteo,Bigender,Social Worker,OR,Beauty,69.2,mastercard
+69,Domingo,Female,Recruiter,CA,Outdoors,115.34,mastercard
+70,Bordie,Male,Sales Associate,PA,Baby,22.68,mastercard
+71,Neil,Female,Geologist IV,CA,Music,125.82,mastercard
+72,Allistir,Female,Chief Design Engineer,TX,Jewelry,41.3,mastercard
+73,Rafe,Genderfluid,Senior Editor,DC,Health,34.88,mastercard
+74,Galvan,Male,Teacher,NE,Jewelry,11.45,mastercard
+75,Dionysus,Female,Legal Assistant,LA,Beauty,91.49,mastercard
+76,Raul,Male,Speech Pathologist,TX,Health,19.59,mastercard
+77,Codie,Female,Media Manager I,CT,Garden,94.58,mastercard
+78,Zeke,Female,Research Associate,DC,Computers,140.9,mastercard
+79,Siegfried,Female,VP Product Management,FL,Clothing,32.87,mastercard
+100,Renault,Agender,Biostatistician IV,AL,Kids,54.37,mastercard
+101,Blayne,Female,Software Engineer IV,CA,Computers,101.07,mastercard
+102,Mendy,Male,Web Designer III,NY,Kids,101.98,mastercard
+103,Finley,Male,Associate Professor,NY,Electronics,92.96,mastercard
+104,Tynan,Male,VP Sales,MN,Grocery,87.1,mastercard
+105,Christoph,Female,Quality Control Specialist,TX,Movies,102.59,mastercard
+106,Vassili,Male,Chemical Engineer,IN,Health,77.19,mastercard
+107,Titos,Male,Nuclear Power Engineer,WA,Tools,16.65,mastercard
+108,Turner,Female,Developer IV,NC,Kids,56.68,mastercard
+109,Kyle,Male,Actuary,OH,Electronics,57.1,mastercard
+110,Yehudi,Genderfluid,Project Manager,TX,Tools,77.33,mastercard
+111,Adams,Female,Clinical Specialist,VA,Clothing,136.63,mastercard
+112,Ingemar,Genderqueer,Account Coordinator,TX,Games,28.0,mastercard
+113,Bartolomeo,Male,Executive Secretary,DC,Toys,115.39,mastercard
+114,Lennard,Female,Administrative Assistant II,IN,Jewelry,45.94,mastercard
+115,Ralf,Female,Senior Quality Engineer,AZ,Beauty,73.73,mastercard
+116,Marten,Non-binary,Web Developer IV,CA,Music,31.92,mastercard
+117,Portie,Female,Teacher,GA,Beauty,118.85,mastercard
+118,Jacob,Male,Teacher,IL,Shoes,91.23,mastercard
+119,Joaquin,Male,Product Engineer,NC,Jewelry,129.51,mastercard
+120,Dougy,Male,Computer Systems Analyst IV,NY,Baby,24.97,mastercard
+121,Bartel,Female,Actuary,OH,Clothing,145.64,mastercard
+122,Inigo,Female,Programmer Analyst II,KS,Clothing,46.16,mastercard
+123,Ross,Male,Analog Circuit Design manager,VA,Books,39.03,mastercard
+124,Saul,Female,VP Marketing,DC,Health,142.63,mastercard`;
+
+// ── Parse ──────────────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  return lines.slice(1).filter(l => l.trim()).map(line => {
+    const p = line.split(',');
+    return {
+      id:       parseInt(p[0]),
+      name:     p[1],
+      gender:   p[2],
+      job:      p[3],
+      state:    p[4],
+      category: p[5],
+      price:    parseFloat(p[6]),
+    };
+  });
+}
+
+const ALL_DATA = parseCSV(RAW_CSV);
+
+// ── State ──────────────────────────────────────────────────────
+let charts = {};
+let filtered = [...ALL_DATA];
+
+// ── Helpers ───────────────────────────────────────────────────
+const fmt = n => 'R$ ' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+function aggregate(data, key, valueKey) {
+  const acc = {};
+  data.forEach(r => {
+    const k = r[key];
+    acc[k] = (acc[k] || 0) + (valueKey ? r[valueKey] : 1);
+  });
+  return acc;
+}
+
+function topN(obj, n, desc = true) {
+  return Object.entries(obj)
+    .sort((a, b) => desc ? b[1] - a[1] : a[1] - b[1])
+    .slice(0, n);
+}
+
+const PALETTE = [
+  '#2563eb','#16a34a','#d97706','#7c3aed','#dc2626','#0891b2',
+  '#65a30d','#c026d3','#ea580c','#0284c7','#4f46e5','#b45309',
+  '#059669','#9333ea','#e11d48','#0d9488','#ca8a04','#7c3aed',
+  '#10b981','#f59e0b','#6366f1','#ef4444','#14b8a6'
+];
+
+function makeColors(n) {
+  return Array.from({ length: n }, (_, i) => PALETTE[i % PALETTE.length]);
+}
+
+// ── Filters ───────────────────────────────────────────────────
+function populateFilters() {
+  const sel = (id, values) => {
+    const el = document.getElementById(id);
+    values.sort().forEach(v => {
+      const o = document.createElement('option');
+      o.value = o.textContent = v;
+      el.appendChild(o);
+    });
+  };
+  sel('filter-gender',   [...new Set(ALL_DATA.map(r => r.gender))]);
+  sel('filter-state',    [...new Set(ALL_DATA.map(r => r.state))]);
+  sel('filter-category', [...new Set(ALL_DATA.map(r => r.category))]);
+
+  ['filter-gender','filter-state','filter-category'].forEach(id =>
+    document.getElementById(id).addEventListener('change', applyFilters)
+  );
+}
+
+function applyFilters() {
+  const g = document.getElementById('filter-gender').value;
+  const s = document.getElementById('filter-state').value;
+  const c = document.getElementById('filter-category').value;
+  filtered = ALL_DATA.filter(r =>
+    (!g || r.gender === g) &&
+    (!s || r.state  === s) &&
+    (!c || r.category === c)
+  );
+  render();
+}
+
+function resetFilters() {
+  ['filter-gender','filter-state','filter-category'].forEach(id =>
+    document.getElementById(id).value = ''
+  );
+  filtered = [...ALL_DATA];
+  render();
+}
+
+// ── KPIs ──────────────────────────────────────────────────────
+function updateKPIs(data) {
+  const total  = data.reduce((s, r) => s + r.price, 0);
+  const unique = new Set(data.map(r => r.id)).size;
+  document.getElementById('kpi-revenue').textContent = fmt(total);
+  document.getElementById('kpi-count').textContent   = data.length;
+  document.getElementById('kpi-clients').textContent = unique;
+  document.getElementById('kpi-avg').textContent     = fmt(data.length ? total / data.length : 0);
+  document.getElementById('badge-rows').textContent  = `${data.length} transações`;
+}
+
+// ── Chart helpers ─────────────────────────────────────────────
+function destroyAndCreate(id, config) {
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), config);
+}
+
+// ── Charts ────────────────────────────────────────────────────
+function drawCategory(data) {
+  const agg   = aggregate(data, 'category', 'price');
+  const pairs = topN(agg, 22);
+  destroyAndCreate('chart-category', {
+    type: 'bar',
+    data: {
+      labels: pairs.map(p => p[0]),
+      datasets: [{
+        label: 'Receita (R$)',
+        data:  pairs.map(p => p[1].toFixed(2)),
+        backgroundColor: makeColors(pairs.length),
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { label: ctx => ' R$ ' + Number(ctx.raw).toFixed(2) }
+      }},
+      scales: {
+        x: { grid: { color: '#f1f5f9' }, ticks: { callback: v => 'R$' + v } },
+        y: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+function drawGender(data) {
+  const agg = aggregate(data, 'gender');
+  const pairs = topN(agg, 10);
+  destroyAndCreate('chart-gender', {
+    type: 'doughnut',
+    data: {
+      labels: pairs.map(p => p[0]),
+      datasets: [{
+        data: pairs.map(p => p[1]),
+        backgroundColor: makeColors(pairs.length),
+        borderWidth: 2,
+        borderColor: '#fff',
+        hoverOffset: 8,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } },
+        tooltip: { callbacks: {
+          label: ctx => ` ${ctx.label}: ${ctx.raw} (${(ctx.raw / data.length * 100).toFixed(1)}%)`
+        }}
+      }
+    }
+  });
+}
+
+function drawState(data) {
+  const agg   = aggregate(data, 'state', 'price');
+  const pairs = topN(agg, 12);
+  destroyAndCreate('chart-state', {
+    type: 'bar',
+    data: {
+      labels: pairs.map(p => p[0]),
+      datasets: [{
+        label: 'Receita (R$)',
+        data:  pairs.map(p => p[1].toFixed(2)),
+        backgroundColor: '#2563eb',
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { label: ctx => ' R$ ' + Number(ctx.raw).toFixed(2) }
+      }},
+      scales: {
+        x: { grid: { display: false } },
+        y: { grid: { color: '#f1f5f9' }, ticks: { callback: v => 'R$' + v } }
+      }
+    }
+  });
+}
+
+function drawPriceHist(data) {
+  const buckets = 10;
+  const prices  = data.map(r => r.price);
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const step = (max - min) / buckets;
+  const counts = Array(buckets).fill(0);
+  prices.forEach(p => {
+    const i = Math.min(Math.floor((p - min) / step), buckets - 1);
+    counts[i]++;
+  });
+  const labels = Array.from({ length: buckets }, (_, i) =>
+    `R$${(min + i * step).toFixed(0)}–${(min + (i + 1) * step).toFixed(0)}`
+  );
+  destroyAndCreate('chart-price', {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Transações',
+        data: counts,
+        backgroundColor: '#7c3aed',
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxRotation: 45 } },
+        y: { grid: { color: '#f1f5f9' } }
+      }
+    }
+  });
+}
+
+function drawJobs(data) {
+  const agg   = aggregate(data, 'job');
+  const pairs = topN(agg, 10);
+  destroyAndCreate('chart-jobs', {
+    type: 'bar',
+    data: {
+      labels: pairs.map(p => p[0]),
+      datasets: [{
+        label: 'Transações',
+        data:  pairs.map(p => p[1]),
+        backgroundColor: makeColors(pairs.length),
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: '#f1f5f9' } },
+        y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+// ── Main render ───────────────────────────────────────────────
+function render() {
+  updateKPIs(filtered);
+  drawCategory(filtered);
+  drawGender(filtered);
+  drawState(filtered);
+  drawPriceHist(filtered);
+  drawJobs(filtered);
+}
+
+populateFilters();
+render();
+</script>
+</body>
+</html>
